@@ -75,14 +75,21 @@ module.exports = function (str) {
   // TODO (scheffield): explain mesurement: http://blog.easydns.org/2011/05/02/dns-speeds-debunked/
   function mesureLookupTime(target, dns, cacheReset) {
     var output;
+    var matchedOutput;
 
     if (cacheReset) {
       resetDNSCache();
     }
 
     output = dig(target, dns).output.trim();
+    matchedOutput = /;; Query time: ([0-9]+) msec/.exec(output);
 
-    return parseInt(/;; Query time: ([0-9]+) msec/.exec(output)[1], 10);
+    if (!matchedOutput) {
+      // TODO (scheffield): some error handling
+      return 10000;
+    }
+
+    return parseInt(matchedOutput[1], 10);
   }
 
   // -- benchmark -------------------------------------------------------------
@@ -111,27 +118,39 @@ module.exports = function (str) {
 
   function benchmark(targets, dnss, opt) {
     var normalizedOpt = extend({}, LOOKUP_DEFAULT_OPT, opt);
-    var lookupsTotal = targets.length * dnss.length * normalizedOpt.runs;
     var results = [];
 
-    var bar = new ProgressBar('benchmarking [:bar] :percent :etas', {
-      complete: '=',
-      incomplete: ' ',
-      width: 100,
-      total: lookupsTotal
-    });
+    var bar = createBar(targets, dnss, normalizedOpt);
 
     eventEmitter.on('tick', function() {
       bar.tick();
     });
 
+    // dns/target
     dnss.forEach(function(dns) {
       targets.forEach(function(target) {
         results.push(benchmarLookup(target, dns.ip, normalizedOpt));
       });
     });
 
+    // target/dns
+    targets.forEach(function(target) {
+      dnss.forEach(function(dns) {
+        results.push(benchmarLookup(target, dns.ip, normalizedOpt));
+      });
+    });
+
     evaluateBenchmark(results);
+  }
+
+  function createBar(targets, dnss, normalizedOpt) {
+    var lookupsTotal = targets.length * dnss.length * normalizedOpt.runs * 2;
+    return new ProgressBar('benchmarking [:bar] :percent :etas', {
+      complete: '=',
+      incomplete: ' ',
+      width: 100,
+      total: lookupsTotal
+    });
   }
 
   // -- evaluation ------------------------------------------------------------
@@ -219,5 +238,5 @@ module.exports = function (str) {
 
   // TODO (scheffield): check for sudo
 
-  benchmark(hosts, dnsServer, {runs: 30});
+  benchmark(hosts, dnsServer, {runs: 30, cacheReset: true});
 };
