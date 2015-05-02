@@ -114,7 +114,7 @@ module.exports = function (str) {
     var lookupsTotal = targets.length * dnss.length * normalizedOpt.runs;
     var results = [];
 
-    var bar = new ProgressBar('  benchmarking [:bar] :percent :etas', {
+    var bar = new ProgressBar('benchmarking [:bar] :percent :etas', {
       complete: '=',
       incomplete: ' ',
       width: 100,
@@ -127,14 +127,10 @@ module.exports = function (str) {
 
     dnss.forEach(function(dns) {
       targets.forEach(function(target) {
-        //console.log(dns + ' ' + target + ':');
-        //console.log(benchmarLookup(target, dns, normalizedOpt));
-
         results.push(benchmarLookup(target, dns.ip, normalizedOpt));
       });
     });
 
-    // console.log(results);
     evaluateBenchmark(results);
   }
 
@@ -142,19 +138,38 @@ module.exports = function (str) {
 
   // creates some statistics based on the benchmark
   function evaluateBenchmark(results) {
-    var perDNSRaw = results.reduce(function(res, currentResult) {
-      res[currentResult.dns] = (res[currentResult.dns] || []).concat(currentResult.raw);
+    evaluateAndPrint(results, 'dns', dnsToName);
+    evaluateAndPrint(results, 'target');
+  }
+
+  function evaluateAndPrint(results, attribute, toName) {
+    console.log('\nresult by ' + attribute + ': ');
+
+    printTable(
+      transformToRows(
+        accumulateByAttribute(results, attribute), toName));
+  }
+
+  function accumulateByAttribute(results, attribute) {
+    return results.reduce(function(res, currentResult) {
+      res[currentResult[attribute]] = (res[currentResult[attribute]] || []).concat(currentResult.raw);
       return res;
     }, {});
-    var perDNS = Object.keys(perDNSRaw).map(function(dns) {
+  }
+
+  function transformToRows(perAttributeRaw, transformNameFn) {
+    return Object.keys(perAttributeRaw).map(function(dns) {
+      var name = transformNameFn ? transformNameFn(dns) : dns;
       return {
-        name: dnsToName(dns),
-        stat: stats(perDNSRaw[dns])
+        name: name,
+        stat: stats(perAttributeRaw[dns])
       }
     });
+  }
 
+  function printTable(perAttribute) {
     var table = new Table({
-      head: ['DNS', 'min', 'avg', 'max', 'stdDev'],
+      head: ['', 'min', 'avg', 'max', 'stdDev'],
       chars: { 'top': '' , 'top-mid': '' , 'top-left': '' , 'top-right': ''
              , 'bottom': '' , 'bottom-mid': '' , 'bottom-left': '' , 'bottom-right': ''
              , 'left': '' , 'left-mid': '' , 'mid': '' , 'mid-mid': ''
@@ -162,7 +177,7 @@ module.exports = function (str) {
       style: { 'padding-left': 0, 'padding-right': 0 }
     });
 
-    perDNS.forEach(function(result) {
+    perAttribute.forEach(function(result) {
       table.push([result.name, result.stat.min, result.stat.avg, result.stat.max, result.stat.dev]);
     });
 
@@ -194,7 +209,6 @@ module.exports = function (str) {
   // -- main ------------------------------------------------------------------
 
   var osInfo = collectOSInfo();
-  console.log(osInfo);
 
   if (!osInfo.osx) {
     console.log('At the moment only OSX is supported!'.red);
@@ -205,5 +219,5 @@ module.exports = function (str) {
 
   // TODO (scheffield): check for sudo
 
-  benchmark(hosts, dnsServer, {runs: 1});
+  benchmark(hosts, dnsServer, {runs: 30});
 };
