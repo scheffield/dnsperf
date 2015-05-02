@@ -2,14 +2,33 @@
 
 var shell = require('shelljs');
 var os = require('os');
-
+var colors = require('colors');
 
 module.exports = function (str) {
-  console.log(str || 'Rainbow');
 
-  console.log(shell.exec('node --version', { silent: true }).output);
-  console.log(('type, platform, arch, release').split(', ').map(function(cmd) {
-    return [cmd, os[cmd]()].join(': ');
-  }));
+  function collectOSInfo() {
+    if (os.platform().toLowerCase() === 'darwin') {
+      var version = shell.exec('sw_vers -productVersion', { silent: true }).output.trim();
+      var versionA = version.split('.');
+
+      return {
+        osx: false,
+        version: version,
+        major: versionA[0],
+        minor: versionA[1],
+        patch: versionA[2]
+      };
+    }
+
+    return {osx: false};
+  };
+
+  var osInfo = collectOSInfo();
+  console.log(osInfo);
+
+  if (!osInfo.osx) {
+    console.log('At the moment only OSX is supported!'.red);
+    return;
+  }
 
 };
