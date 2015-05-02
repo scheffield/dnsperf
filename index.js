@@ -7,6 +7,7 @@ var extend = require('extend');
 var numbers = require('numbers');
 var ProgressBar = require('progress');
 var eventEmitter = new (require('events').EventEmitter)();
+var Table = require('cli-table');
 
 module.exports = function (str) {
 
@@ -17,7 +18,7 @@ module.exports = function (str) {
 
   // -- conf ------------------------------------------------------------------
 
-  var hosts = ['heise.de', 'netflix.com'];
+  var hosts = ['heise.de', 'netflix.com', 'google.com', 'google.com.au', 'facebook.com', 'youtube.com'];
   // TODO (scheffield): support meta info (dns provider name)
   var dnsServer = [
     {
@@ -96,6 +97,7 @@ module.exports = function (str) {
       eventEmitter.emit('tick');
     }
 
+    // TODO (scheffield): reuse stats
     return {
       min: numbers.basic.min(times),
       avg: numbers.statistic.mean(times),
@@ -132,7 +134,61 @@ module.exports = function (str) {
       });
     });
 
-    console.log(results);
+    // console.log(results);
+    evaluateBenchmark(results);
+  }
+
+  // -- evaluation ------------------------------------------------------------
+
+  // creates some statistics based on the benchmark
+  function evaluateBenchmark(results) {
+    var perDNSRaw = results.reduce(function(res, currentResult) {
+      res[currentResult.dns] = (res[currentResult.dns] || []).concat(currentResult.raw);
+      return res;
+    }, {});
+    var perDNS = Object.keys(perDNSRaw).map(function(dns) {
+      return {
+        name: dnsToName(dns),
+        stat: stats(perDNSRaw[dns])
+      }
+    });
+
+    var table = new Table({
+      head: ['DNS', 'min', 'avg', 'max', 'stdDev'],
+      chars: { 'top': '' , 'top-mid': '' , 'top-left': '' , 'top-right': ''
+             , 'bottom': '' , 'bottom-mid': '' , 'bottom-left': '' , 'bottom-right': ''
+             , 'left': '' , 'left-mid': '' , 'mid': '' , 'mid-mid': ''
+             , 'right': '' , 'right-mid': '' , 'middle': ' ' },
+      style: { 'padding-left': 0, 'padding-right': 0 }
+    });
+
+    perDNS.forEach(function(result) {
+      table.push([result.name, result.stat.min, result.stat.avg, result.stat.max, result.stat.dev]);
+    });
+
+    console.log(table.toString());
+  }
+
+  // creates some simple stats for an array of numbers
+  function stats(raw) {
+    return {
+      min: Math.round(numbers.basic.min(raw)),
+      avg: Math.round(numbers.statistic.mean(raw)),
+      max: Math.round(numbers.basic.max(raw)),
+      dev: Math.round(numbers.statistic.standardDev(raw)),
+    };
+  }
+
+  function dnsToName(dns) {
+    var name;
+    dnsServer.some(function(server) {
+      if (server.ip === dns) {
+        name = server.name;
+        return true;
+      }
+    });
+
+    return name;
   }
 
   // -- main ------------------------------------------------------------------
@@ -149,7 +205,5 @@ module.exports = function (str) {
 
   // TODO (scheffield): check for sudo
 
-  //console.log(benchmarLookup('netflix.com', '8.8.8.8'));
-
-  benchmark(hosts, dnsServer, {runs: 2});
+  benchmark(hosts, dnsServer, {runs: 1});
 };
