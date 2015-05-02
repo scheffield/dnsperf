@@ -5,18 +5,38 @@ var os = require('os');
 var colors = require('colors');
 var extend = require('extend');
 var numbers = require('numbers');
+var ProgressBar = require('progress');
+var eventEmitter = new (require('events').EventEmitter)();
 
 module.exports = function (str) {
 
   // -- const -----------------------------------------------------------------
 
   var SILENT = { silent: true };
+  var LOOKUP_DEFAULT_OPT = {cacheReset: false, runs: 10};
 
   // -- conf ------------------------------------------------------------------
 
   var hosts = ['heise.de', 'netflix.com'];
   // TODO (scheffield): support meta info (dns provider name)
-  var dnsServer = ['111.118.175.56', '118.127.33.48', '208.122.23.23', '211.29.132.12', '198.142.0.51'];
+  var dnsServer = [
+    {
+      name: 'unblock-us 1',
+      ip: '111.118.175.56'
+    },{
+      name: 'unblock-us 2',
+      ip: '118.127.33.48'
+    }, {
+      name: 'unblock-us 3',
+      ip: '208.122.23.23'
+    }, {
+      name: 'optus 1',
+      ip: '211.29.132.12'
+    }, {
+      name: 'optus 2',
+      ip: '198.142.0.51'
+    }
+  ];
 
   // -- os --------------------------------------------------------------------
 
@@ -68,19 +88,51 @@ module.exports = function (str) {
 
   // Benchmarks one particular lookup
   function benchmarLookup(target, dns, opt) {
-    var normalizedOpt = extend({}, {cacheReset: false, runs: 10}, opt);
+    var normalizedOpt = extend({}, LOOKUP_DEFAULT_OPT, opt);
     var times = [];
 
     for (var i = 0; i < normalizedOpt.runs; i++) {
       times.push(mesureLookupTime(target, dns, normalizedOpt.cacheReset));
+      eventEmitter.emit('tick');
     }
 
     return {
       min: numbers.basic.min(times),
       avg: numbers.statistic.mean(times),
       max: numbers.basic.max(times),
-      dev: numbers.statistic.standardDev(times)
+      dev: numbers.statistic.standardDev(times),
+      raw: times,
+      target: target,
+      dns: dns
     };
+  }
+
+  function benchmark(targets, dnss, opt) {
+    var normalizedOpt = extend({}, LOOKUP_DEFAULT_OPT, opt);
+    var lookupsTotal = targets.length * dnss.length * normalizedOpt.runs;
+    var results = [];
+
+    var bar = new ProgressBar('  benchmarking [:bar] :percent :etas', {
+      complete: '=',
+      incomplete: ' ',
+      width: 100,
+      total: lookupsTotal
+    });
+
+    eventEmitter.on('tick', function() {
+      bar.tick();
+    });
+
+    dnss.forEach(function(dns) {
+      targets.forEach(function(target) {
+        //console.log(dns + ' ' + target + ':');
+        //console.log(benchmarLookup(target, dns, normalizedOpt));
+
+        results.push(benchmarLookup(target, dns.ip, normalizedOpt));
+      });
+    });
+
+    console.log(results);
   }
 
   // -- main ------------------------------------------------------------------
@@ -97,6 +149,7 @@ module.exports = function (str) {
 
   // TODO (scheffield): check for sudo
 
-  console.log(benchmarLookup('netflix.com', '8.8.8.8'));
+  //console.log(benchmarLookup('netflix.com', '8.8.8.8'));
 
+  benchmark(hosts, dnsServer, {runs: 2});
 };

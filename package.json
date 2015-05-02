@@ -2,11 +2,11 @@
   "name": "dnsperf",
   "version": "0.0.0",
   "description": "Benchmarking dns server",
-  "homepage": "digitalme.co",
+  "homepage": "https://github.com/scheffield/dnsperf",
   "author": {
     "name": "Max Scheffler",
     "email": "scheffield@gmail.com",
-    "url": "digitalme.co"
+    "url": "http://digitalme.co"
   },
   "repository": "scheffield/dnsperf",
   "license": "MIT",
@@ -26,6 +26,7 @@
     "extend": "^2.0.1",
     "meow": "^3.1.0",
     "numbers": "^0.6.0",
+    "progress": "^1.1.8",
     "shelljs": "^0.4.0"
   },
   "devDependencies": {
