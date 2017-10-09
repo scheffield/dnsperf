@@ -32,10 +32,10 @@ $ node cli.js
 ```
 ## Todo
 
-* configurable list of DNS server
-* configurable list of names to resolve (aka targets)
-* error handling
-* support for cli params instead of hardcoded values
+* Configurable list of DNS server
+* Configurable list of names to resolve (aka targets)
+* Error handling
+* Support for cli params instead of hardcoded values
 
 ## License
 
